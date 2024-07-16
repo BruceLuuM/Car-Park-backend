@@ -27,7 +27,7 @@ export class ParkingService {
     return Math.ceil(diffInHours) * hourlyRate;
   }
 
-  async create(cardData: Partial<Card>): Promise<Card> {
+  async createCard(cardData: Partial<Card>): Promise<Card> {
     const card = this.cardRepository.create(cardData);
     return await this.cardRepository.save(card);
   }
@@ -55,6 +55,14 @@ export class ParkingService {
       where: { numberPlate, timeOut: null },
     });
     timeIn.setHours(timeIn.getHours() + 7);
+    let card;
+    try {
+      card = await this.cardRepository.findOne({
+        where: { cardId: cardId },
+      });
+    } catch (err) {
+      throw new Error('Card not valid');
+    }
 
     if (currentParking) {
       // Update existing parking entry
@@ -65,6 +73,7 @@ export class ParkingService {
       if (numberPlate && numberPlate.trim() !== '') {
         currentParking = this.parkingRepository.create({
           numberPlate,
+          card: card,
           timeIn: timeIn,
         });
       } else {
@@ -74,7 +83,7 @@ export class ParkingService {
     }
 
     // Update card status to 'used'
-    await this.cardRepository.update({ cardId }, { status: 'used' });
+    // await this.cardRepository.update({ cardId }, { status: 'used' });
 
     // Save the parking entry (either newly created or updated)
     return this.parkingRepository.save(currentParking);
@@ -88,8 +97,23 @@ export class ParkingService {
     // return this.parkingRepository.save(parking);
   }
 
-  async completeParking(id: number, timeOut: Date): Promise<Parking> {
-    const parking = await this.parkingRepository.findOne({ where: { id } });
+  async completeParking(
+    cardId: string,
+    numberPlate: string,
+    timeOut: Date,
+  ): Promise<Parking> {
+    let card;
+    try {
+      card = await this.cardRepository.findOne({
+        where: { cardId: cardId },
+      });
+    } catch (err) {
+      throw new Error('Card not valid');
+    }
+
+    const parking = await this.parkingRepository.findOne({
+      where: { numberPlate: numberPlate, card: card },
+    });
     if (!parking) {
       throw new Error('Parking record not found');
     }
@@ -101,7 +125,9 @@ export class ParkingService {
   }
 
   async findAll(): Promise<Parking[]> {
-    return this.parkingRepository.find();
+    return this.parkingRepository.find({
+      relations: ['card'],
+    });
   }
 
   async findOne(id: number): Promise<Parking> {

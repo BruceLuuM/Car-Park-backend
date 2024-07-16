@@ -4,6 +4,7 @@ import {
   PrimaryGeneratedColumn,
   OneToOne,
   JoinColumn,
+  ManyToOne,
 } from 'typeorm';
 import { Card } from './card.entity';
 
@@ -24,7 +25,7 @@ export class Parking {
   @Column({ type: 'decimal', nullable: true })
   money: number;
 
-  @OneToOne(() => Card, (card) => card.parking)
+  @ManyToOne(() => Card, (card) => card.parking)
   @JoinColumn()
   card: Card;
 }

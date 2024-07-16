@@ -15,31 +15,34 @@ import { Parking } from './entities/parking.entity';
 import { Card } from './entities/card.entity';
 import { SerialPort } from 'serialport';
 import { RegisterDto } from './dto/register-parking.dto';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Controller('parking')
 export class ParkingController {
   private serialPort: SerialPort;
 
-  constructor(private readonly parkingService: ParkingService) {
-    try {
-      this.serialPort = new SerialPort({
-        path: 'COM5', // Replace with your Arduino's serial port
-        baudRate: 9600,
-        dataBits: 8,
-        parity: 'none',
-        stopBits: 1,
-        autoOpen: true,
-      });
-
-      this.serialPort.on('open', () => {
-        console.log('Serial port opened successfully');
-      });
-      this.serialPort.on('error', (err) => {
-        console.error('Error opening serial port: ', err.message);
-      });
-    } catch (error) {
-      console.error('Failed to initialize serial port: ', error.message);
-    }
+  constructor(
+    private readonly parkingService: ParkingService,
+    private eventEmitter: EventEmitter2,
+  ) {
+    // try {
+    //   this.serialPort = new SerialPort({
+    //     path: 'COM5', // Replace with your Arduino's serial port
+    //     baudRate: 9600,
+    //     dataBits: 8,
+    //     parity: 'none',
+    //     stopBits: 1,
+    //     autoOpen: true,
+    //   });
+    //   this.serialPort.on('open', () => {
+    //     console.log('Serial port opened successfully');
+    //   });
+    //   this.serialPort.on('error', (err) => {
+    //     console.error('Error opening serial port: ', err.message);
+    //   });
+    // } catch (error) {
+    //   console.error('Failed to initialize serial port: ', error.message);
+    // }
   }
 
   @Post('register')
@@ -47,7 +50,7 @@ export class ParkingController {
     const { name, code, cardId, numberPlate, type } = registerDto;
 
     // Create Human entity
-    const card = await this.parkingService.create({
+    const card = await this.parkingService.createCard({
       cardId,
       status: 'registered',
     });
@@ -65,7 +68,7 @@ export class ParkingController {
 
   @Post('/card')
   async create(@Body() cardData: Partial<Card>): Promise<Card> {
-    return this.parkingService.create(cardData);
+    return this.parkingService.createCard(cardData);
   }
 
   @Put('/card/:id')
@@ -93,26 +96,28 @@ export class ParkingController {
     );
   }
 
-  @Patch('complete/:id')
+  @Patch('complete')
   completeParking(
-    @Param('id') id: number,
-    @Body() completeParkingDto: { timeOut: Date },
+    @Body()
+    completeParkingDto: {
+      cardId: string;
+      numberPlate: string;
+      timeOut: Date;
+    },
   ): Promise<Parking> {
-    const { timeOut } = completeParkingDto;
-    return this.parkingService.completeParking(id, new Date(timeOut));
+    const { cardId, numberPlate, timeOut } = completeParkingDto;
+    return this.parkingService.completeParking(
+      cardId,
+      numberPlate,
+      new Date(timeOut),
+    );
   }
 
   @Get('/open-servo')
   openServo() {
     // Send the open_servo command to the Arduino
     console.log('open1');
-    this.serialPort.write('1\n', (err) => {
-      if (err) {
-        console.log('Error on write: ', err.message);
-        return 'Error opening servo';
-      }
-      console.log('Open servo command sent');
-    });
+    this.eventEmitter.emit('openServo');
     return 'Servo opened';
   }
 

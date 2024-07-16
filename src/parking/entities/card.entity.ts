@@ -4,6 +4,7 @@ import {
   PrimaryGeneratedColumn,
   OneToOne,
   JoinColumn,
+  OneToMany,
 } from 'typeorm';
 import { Parking } from './parking.entity';
 import { ParkRegister } from './parkRegister.entity';
@@ -19,7 +20,7 @@ export class Card {
   @Column()
   status: string; //new, used
 
-  @OneToOne(() => Parking, (parking) => parking.card, { nullable: true })
+  @OneToMany(() => Parking, (parking) => parking.card, { nullable: true })
   @JoinColumn()
   parking: Parking;
 
